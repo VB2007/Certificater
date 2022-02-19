@@ -1,70 +1,55 @@
 import pymorphy2 as pmr
 from pytrovich.enums import NamePart, Gender, Case
 from pytrovich.maker import PetrovichDeclinationMaker
-import copy
 
 
-def name_change(name):
-
-    morph = pmr.MorphAnalyzer(lang='ru')  # определение пола
-    maker = PetrovichDeclinationMaker()  # склонение ФИО
-    full_name = name.split()  # разбиение ФИО на составляющие
-
-    gender = ""
-    if full_name[1]:
-        if 'masc' in morph.parse(full_name[1])[0].tag:
-            gender = Gender.MALE
-        elif 'femn' in morph.parse(full_name[1])[0].tag:
-            gender = Gender.FEMALE
-
-    cased_first_name = maker.make(
-        NamePart.FIRSTNAME, gender, Case.DATIVE, full_name[1])
-    cased_sur_name = maker.make(
-        NamePart.LASTNAME, gender, Case.DATIVE, full_name[0])
-    #  cased_patronymic = maker.make(
-    #     NamePart.MIDDLENAME, gender, Case.DATIVE, full_name[2])
-
-    final_name = cased_sur_name + ' ' + cased_first_name # + ' ' + cased_patronymic
-    final_name = final_name.strip()
-
-    return final_name
-
-
-'''
-    f_name = ''
-    print()
-    print(morph.parse(name))
-    for elem in morph.parse(name):
-        print(elem)
-        if 'Patr' in elem.tag:
-            f_name = elem
-    print()
-
-    is_name = any('Patr' in p.tag for p in morph.parse(name))
-    print(is_name)
-    print("Ok")
-'''
-
-'''
-    if 'masc' in morph.parse(full_name[1])[0].tag:
-        gender = Gender.MALE
+def name_change(name='Иванов Иван Иванович', case='nominative'):
+    if case == "nominative" or case == "именительный":
+        return name
+    # Нужно для свободного выбора падежа
     else:
-        gender = Gender.FEMALE
-    
-    if 'masc' in morph.parse(full_name[1])[0].tag:
-        cased_last_name = maker.make(NamePart.LASTNAME, Gender.MALE, Case.DATIVE, full_name[0])
-        cased_name = maker.make(NamePart.FIRSTNAME, Gender.MALE, Case.DATIVE, full_name[1])
-    elif 'femn' in morph.parse(full_name[1])[0].tag:
-        cased_last_name = maker.make(NamePart.LASTNAME, Gender.FEMALE, Case.DATIVE, full_name[0])
-        cased_name = maker.make(NamePart.FIRSTNAME, Gender.FEMALE, Case.DATIVE, full_name[1])
-    try:
-        if 'masc' in morph.parse(full_name[1])[0].tag:
-            cased_middle_name = maker.make(NamePart.MIDDLENAME, Gender.MALE, Case.DATIVE, full_name[2])
-            print("Hi", cased_middle_name)
-        elif 'femn' in morph.parse(full_name[1])[0].tag:
-            cased_middle_name = maker.make(NamePart.MIDDLENAME, Gender.FEMALE, Case.DATIVE, full_name[2])
+        all_cases = {
+        'genetive': Case.GENITIVE,
+        'родительный': Case.GENITIVE,
+        'accusative': Case.ACCUSATIVE,
+        'винительный': Case.ACCUSATIVE, 
+        'dative': Case.DATIVE, 
+        'дательный': Case.DATIVE,
+        'instrumental': Case.INSTRUMENTAL,
+        'творительный': Case.INSTRUMENTAL,
+        'prepositional': Case.PREPOSITIONAL,
+        'предложный': Case.PREPOSITIONAL
+        }
+        morph = pmr.MorphAnalyzer(lang='ru')  # определение пола
+        maker = PetrovichDeclinationMaker()  # склонение ФИО
+        full_name = name.split()  # разбиение ФИО на составляющие
 
-        return [cased_last_name, cased_name, cased_middle_name]
-    except IndexError:
-        return [cased_last_name, cased_name, '']
-'''
+        gender = ""
+        # Определяем пол по отчеству человека (если оно имеется)
+        # Если последняя буква - ч, то это мужчина, иначе женщина
+        if len(full_name) == 3:
+            if full_name[-1][-1].lower() == 'ч':
+                gender = Gender.MALE
+            else:
+                gender = Gender.FEMALE
+            cased_middle_name = maker.make(NamePart.MIDDLENAME, gender, all_cases[case.lower()], full_name[2]) # Отчество
+            cased_first_name = maker.make(NamePart.FIRSTNAME, gender, all_cases[case.lower()], full_name[1]) # Имя
+            cased_lastname = maker.make(NamePart.LASTNAME, gender, all_cases[case.lower()], full_name[0]) # Фамилия
+            final_name = f'{cased_lastname} {cased_first_name} {cased_middle_name}'
+        elif len(full_name) == 2:
+            if 'masc' in morph.parse(full_name[1])[0].tag:
+                gender = Gender.MALE
+            elif 'femn' in morph.parse(full_name[1])[0].tag:
+                gender = Gender.FEMALE
+            cased_first_name = maker.make(NamePart.FIRSTNAME, gender, all_cases[case.lower()], full_name[1]) # Имя
+            cased_lastname = maker.make(NamePart.LASTNAME, gender, all_cases[case.lower()], full_name[0]) # Фамилия
+            final_name = f'{cased_lastname} {cased_first_name}'
+        else:
+            if 'masc' in morph.parse(full_name[0])[0].tag:
+                gender = Gender.MALE
+            elif 'femn' in morph.parse(full_name[0])[0].tag:
+                gender = Gender.FEMALE
+            cased_first_name = maker.make(NamePart.FIRSTNAME, gender, all_cases[case.lower()], full_name[0]) # Имя
+            final_name = f'{cased_first_name}'
+
+        return final_name
